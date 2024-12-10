@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:80"
+    volumes:
+      - csv-data:/app/data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  csv-data:
