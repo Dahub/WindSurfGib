@@ -6,12 +6,12 @@ services:
       context: ./src/backend
       dockerfile: Dockerfile
     ports:
-      - "5000:80"
+      - "5269:5269"
     volumes:
       - csv-data:/app/data
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-
+      - ASPNETCORE_URLS=http://+:5269
   frontend:
     build:
       context: ./src/frontend
