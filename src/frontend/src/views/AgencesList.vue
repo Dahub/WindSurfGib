@@ -47,7 +47,13 @@ export default {
     }
 
     const goToMagasins = (agence) => {
-      router.push(`/agences/${encodeURIComponent(agence)}/magasins`)
+      router.push({
+        name: 'magasins',
+        params: {
+          agence: agence,
+          agenceName: agence
+        }
+      })
     }
 
     onMounted(fetchAgences)

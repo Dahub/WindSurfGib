@@ -11,7 +11,13 @@ const routes = [
   {
     path: '/agences/:agence/magasins',
     name: 'magasins',
-    component: MagasinsList,
+    component: () => import('../views/MagasinsList.vue'),
+    props: true
+  },
+  {
+    path: '/agences/:agence/magasins/:magasin/articles',
+    name: 'feuille-inventaire',
+    component: () => import('../views/FeuilleInventaire.vue'),
     props: true
   }
 ]

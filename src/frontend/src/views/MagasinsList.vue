@@ -5,9 +5,12 @@
       <h1>Magasins - {{ agence }}</h1>
     </div>
     <div class="list" v-if="!loading">
-      <div v-for="magasin in magasins" 
-           :key="magasin.code" 
-           class="list-item">
+      <div 
+        v-for="magasin in magasins" 
+        :key="magasin.code"
+        class="list-item"
+        @click="goToInventaire(magasin)"
+      >
         {{ magasin.nom }}
         <div class="magasin-code">{{ magasin.code }}</div>
       </div>
@@ -55,6 +58,25 @@ export default {
       router.back()
     }
 
+    const goToInventaire = (magasin) => {
+      console.log('Magasin sélectionné:', magasin);
+      
+      const params = {
+        agence: route.params.agence,
+        magasin: magasin.code,
+        agenceName: route.params.agenceName || route.params.agence,
+        magasinName: magasin.nom
+      };
+      
+      console.log('Navigation vers inventaire avec params:', params);
+      
+      router.push({
+        name: 'feuille-inventaire',
+        params,
+        replace: false
+      });
+    }
+
     onMounted(fetchMagasins)
 
     return {
@@ -62,7 +84,8 @@ export default {
       loading,
       error,
       agence,
-      goBack
+      goBack,
+      goToInventaire
     }
   }
 }
@@ -107,6 +130,7 @@ h1 {
   padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
 }
 
 .magasin-code {
