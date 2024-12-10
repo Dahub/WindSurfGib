@@ -2,7 +2,11 @@
   <div class="feuille-inventaire">
     <div class="header">
       <button class="back-button" @click="goBack">←</button>
-      <h1>{{ agenceName }} - {{ magasinName }}</h1>
+      <div class="title">{{ agenceName }} - {{ magasinName }}</div>
+      <div class="expand-buttons">
+        <button class="action-button" @click="expandAll">Déplier tout</button>
+        <button class="action-button" @click="collapseAll">Replier tout</button>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">
@@ -44,12 +48,19 @@
                     <td>{{ article.code }}</td>
                     <td>{{ article.designation }}</td>
                     <td>
-                      <input 
-                        type="number" 
-                        v-model.number="article.quantiteTerrain"
-                        min="0"
-                        @change="handleQuantityChange(article)"
-                      >
+                      <div class="quantity-controls">
+                        <input 
+                          type="number" 
+                          v-model.number="article.quantiteTerrain"
+                          min="0"
+                          @change="handleQuantityChange(article)"
+                        >
+                        <div class="quantity-shortcuts">
+                          <button class="shortcut-btn" @click="incrementQuantity(article, 1)">+1</button>
+                          <button class="shortcut-btn" @click="incrementQuantity(article, 5)">+5</button>
+                          <button class="shortcut-btn" @click="incrementQuantity(article, 10)">+10</button>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -122,6 +133,29 @@ export default {
       sousFamille.expanded = !sousFamille.expanded
     }
 
+    const expandAll = () => {
+      famillesGroupees.value.forEach(famille => {
+        famille.expanded = true
+        famille.sousFamilles.forEach(sf => {
+          sf.expanded = true
+        })
+      })
+    }
+
+    const collapseAll = () => {
+      famillesGroupees.value.forEach(famille => {
+        famille.expanded = false
+        famille.sousFamilles.forEach(sf => {
+          sf.expanded = false
+        })
+      })
+    }
+
+    const incrementQuantity = (article, amount) => {
+      article.quantiteTerrain = (article.quantiteTerrain || 0) + amount
+      handleQuantityChange(article)
+    }
+
     const handleQuantityChange = (article) => {
       console.log('Quantité modifiée pour article:', article.code, 'Nouvelle valeur:', article.quantiteTerrain)
       // TODO: Appeler l'API pour sauvegarder la nouvelle quantité
@@ -142,6 +176,9 @@ export default {
       toggleFamille,
       toggleSousFamille,
       handleQuantityChange,
+      incrementQuantity,
+      expandAll,
+      collapseAll,
       goBack
     }
   }
@@ -149,77 +186,99 @@ export default {
 </script>
 
 <style scoped>
-.feuille-inventaire {
-  padding: 1rem;
+.container {
+  padding: 0.5rem;
 }
 
 .header {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  justify-content: space-between;
+  font-size: 0.9em;
+}
+
+.title {
+  margin: 0;
+  flex-grow: 1;
+  font-weight: 500;
+  color: #444;
 }
 
 .back-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.9em;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 3px;
   cursor: pointer;
-  padding: 0.5rem;
-  margin-right: 1rem;
-}
-
-.back-button:hover {
   color: #666;
 }
 
-h1 {
-  margin: 0;
-  font-size: 1.5rem;
+.expand-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.action-button {
+  padding: 0.25rem 0.5rem;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.action-button:hover {
+  background-color: #e8e8e8;
 }
 
 .familles-list {
-  margin-top: 1rem;
-}
-
-.famille {
-  margin-bottom: 0.5rem;
-  background-color: #f5f5f5;
+  border: 1px solid #ddd;
   border-radius: 4px;
 }
 
-.famille-header {
-  display: flex;
-  align-items: center;
-  padding: 1rem;
-  cursor: pointer;
-  user-select: none;
+.famille {
+  border-bottom: 1px solid #eee;
 }
 
-.famille-header:hover {
-  background-color: #e0e0e0;
+.famille:last-child {
+  border-bottom: none;
+}
+
+.famille-header {
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  background-color: #f8f8f8;
+  font-weight: 500;
 }
 
 .toggle-icon {
   margin-right: 0.5rem;
   font-size: 0.8em;
-}
-
-.sous-familles {
-  margin-left: 2rem;
-  padding: 0.5rem 1rem;
+  width: 12px;
+  display: inline-block;
 }
 
 .sous-famille {
-  margin: 0.25rem 0;
-  background-color: white;
-  border-radius: 4px;
+  margin: 0;
+  border-bottom: 1px solid #eee;
+}
+
+.sous-famille:last-child {
+  border-bottom: none;
 }
 
 .sous-famille-header {
   display: flex;
   align-items: center;
-  padding: 0.5rem;
+  padding: 0.25rem 0.5rem;
   cursor: pointer;
+  background-color: #fff;
 }
 
 .sous-famille-content {
@@ -227,56 +286,96 @@ h1 {
   justify-content: space-between;
   align-items: center;
   flex-grow: 1;
+  font-size: 0.9em;
 }
 
 .articles-list {
-  margin: 0.5rem;
-  padding: 0.5rem;
-  background-color: #f9f9f9;
-  border-radius: 4px;
+  margin: 0;
+  background-color: #fafafa;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.9em;
 }
 
 th, td {
-  padding: 0.5rem;
+  padding: 0.25rem 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #ddd;
+  border: none;
 }
 
 th {
   background-color: #f5f5f5;
   font-weight: 500;
+  font-size: 0.85em;
+  color: #666;
+}
+
+tr:nth-child(even) {
+  background-color: #f8f8f8;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.quantity-shortcuts {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.shortcut-btn {
+  padding: 0.15rem 0.25rem;
+  font-size: 0.75em;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  cursor: pointer;
+  color: #666;
+}
+
+.shortcut-btn:hover {
+  background-color: #e8e8e8;
 }
 
 input[type="number"] {
-  width: 80px;
-  padding: 0.3rem;
+  width: 50px;
+  padding: 0.15rem 0.25rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
 }
 
 input[type="number"]:focus {
   outline: none;
   border-color: #4CAF50;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+  box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.2);
 }
 
 .articles-count {
   font-size: 0.8em;
   color: #666;
-  margin-left: 1rem;
+  margin-left: 0.5rem;
 }
 
 .loading, .error {
-  padding: 1rem;
+  padding: 0.5rem;
   text-align: center;
 }
 
 .error {
-  color: red;
+  color: #d32f2f;
+  background-color: #ffebee;
+  border-radius: 4px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.1em;
+  flex-grow: 1;
 }
 </style>
