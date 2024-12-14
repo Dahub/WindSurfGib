@@ -5,7 +5,8 @@ namespace WindSurfApi.Services.Interfaces
 {
     public interface ICsvDataProvider
     {
-        Task<string[]> ReadAllLinesAsync();
+        Task<IEnumerable<string>> ReadAllLinesAsync();
         Task WriteAllLinesAsync(IEnumerable<string> lines);
+        Task DeleteFileAsync();
     }
 }

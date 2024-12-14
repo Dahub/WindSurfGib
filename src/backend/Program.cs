@@ -32,6 +32,7 @@ builder.Services.AddScoped<ICsvDataProvider, CsvDataProvider>();
 builder.Services.AddScoped<IAgenceService, AgenceService>();
 builder.Services.AddScoped<IMagasinService, MagasinService>();
 builder.Services.AddScoped<IArticleService, ArticleService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 var app = builder.Build();
 
@@ -54,23 +55,37 @@ if (!app.Environment.IsDevelopment())
 // API Routes
 var api = app.MapGroup("/api");
 var agences = api.MapGroup("/agences");
+var admin = api.MapGroup("/admin");
 
-// GET /api/agences
+// Agences routes
 agences.MapGet("/", (IAgenceService agenceService) =>
     Results.Ok(agenceService.GetAgences()));
 
-// GET /api/agences/{agence}/magasins
 agences.MapGet("/{agence}/magasins", (string agence, IMagasinService magasinService) =>
     Results.Ok(magasinService.GetMagasins(agence)));
 
-// GET /api/agences/{agence}/magasins/{magasin}/articles
 agences.MapGet("/{agence}/magasins/{magasin}/articles", (string agence, string magasin, IArticleService articleService) =>
     Results.Ok(articleService.GetArticles(agence, magasin)));
 
-// POST /api/agences/{agence}/magasins/{magasin}/articles
 agences.MapPost("/{agence}/magasins/{magasin}/articles", async (string agence, string magasin, List<UpdateQuantiteRequest> articles, IArticleService articleService) =>
 {
     await articleService.UpdateQuantites(agence, magasin, articles);
+    return Results.Ok();
+});
+
+// Admin routes
+admin.MapDelete("/csv", async (IAdminService adminService) =>
+{
+    await adminService.DeleteCsvFile();
+    return Results.Ok();
+});
+
+admin.MapGet("/csv", async (IAdminService adminService) =>
+    Results.File(await adminService.DownloadCsvFile(), "text/csv", "inventory.csv"));
+
+admin.MapPost("/csv", async (IFormFile file, IAdminService adminService) =>
+{
+    await adminService.MergeCsvFile(file);
     return Results.Ok();
 });
 

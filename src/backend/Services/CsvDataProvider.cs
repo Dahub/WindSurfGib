@@ -18,10 +18,14 @@ namespace WindSurfApi.Services
             _logger = logger;
         }
 
-        public async Task<string[]> ReadAllLinesAsync()
+        public async Task<IEnumerable<string>> ReadAllLinesAsync()
         {
             try
             {
+                if (!File.Exists(_csvFilePath))
+                {
+                    return Array.Empty<string>();
+                }
                 return await File.ReadAllLinesAsync(_csvFilePath);
             }
             catch (Exception ex)
@@ -40,6 +44,23 @@ namespace WindSurfApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erreur lors de l'écriture dans le fichier CSV");
+                throw;
+            }
+        }
+
+        public async Task DeleteFileAsync()
+        {
+            try
+            {
+                if (File.Exists(_csvFilePath))
+                {
+                    File.Delete(_csvFilePath);
+                    await Task.CompletedTask;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la suppression du fichier CSV");
                 throw;
             }
         }

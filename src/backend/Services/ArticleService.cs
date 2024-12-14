@@ -107,41 +107,33 @@ namespace WindSurfApi.Services
         {
             try
             {
-                var lines = await _csvDataProvider.ReadAllLinesAsync();
-                if (lines == null || !lines.Any())
+                var lines = (await _csvDataProvider.ReadAllLinesAsync()).ToList();
+                if (!lines.Any())
                 {
                     throw new InvalidBusinessDataException("Le fichier CSV est vide");
                 }
 
-                var updatedLines = new List<string> { lines[0] }; 
+                var headers = lines[0];
+                var updatedLines = new List<string> { headers };
                 var articlesUpdated = new HashSet<string>();
 
+                // Mettre à jour les articles existants
                 foreach (var line in lines.Skip(1))
                 {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-
-                    var values = line.Split(';');
-                    if (values.Length < 9) continue;
-
-                    var currentLine = line;
-                    if (string.Equals(values[0].Trim(), agence.Trim(), StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(values[1].Trim(), magasin.Trim(), StringComparison.OrdinalIgnoreCase))
+                    var fields = line.Split(';');
+                    if (fields[0] == agence && fields[1] == magasin)
                     {
-                        var articleCode = values[3].Trim();
-                        var articleToUpdate = articles.FirstOrDefault(a => 
-                            string.Equals(a.CodeArticle.Trim(), articleCode, StringComparison.OrdinalIgnoreCase));
-
-                        if (articleToUpdate != null)
+                        var article = articles.FirstOrDefault(a => a.CodeArticle == fields[3]);
+                        if (article != null)
                         {
-                            values[9] = articleToUpdate.QuantiteTerrain.ToString();
-                            currentLine = string.Join(";", values);
-                            articlesUpdated.Add(articleCode);
-                            _logger.LogInformation($"Article mis à jour : {articleCode}, nouvelle quantité terrain : {articleToUpdate.QuantiteTerrain}");
+                            fields[9] = article.QuantiteTerrain.ToString();
+                            articlesUpdated.Add(article.CodeArticle);
                         }
                     }
-                    updatedLines.Add(currentLine);
+                    updatedLines.Add(string.Join(";", fields));
                 }
 
+                // Vérifier si tous les articles ont été trouvés
                 var nonUpdatedArticles = articles
                     .Where(a => !articlesUpdated.Contains(a.CodeArticle))
                     .Select(a => a.CodeArticle)
@@ -155,11 +147,10 @@ namespace WindSurfApi.Services
                 }
 
                 await _csvDataProvider.WriteAllLinesAsync(updatedLines);
-                _logger.LogInformation($"Mise à jour réussie pour {articlesUpdated.Count} articles");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Erreur lors de la mise à jour des quantités pour l'agence {agence}, magasin {magasin}");
+                _logger.LogError(ex, "Erreur lors de la mise à jour des quantités");
                 throw;
             }
         }
