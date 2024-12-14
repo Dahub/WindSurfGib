@@ -12,12 +12,22 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5269
+  
   frontend:
     build:
       context: ./src/frontend
       dockerfile: Dockerfile
     ports:
       - "8080:80"
+    depends_on:
+      - backend
+
+  admin:
+    build:
+      context: ./src/admin
+      dockerfile: Dockerfile
+    ports:
+      - "8081:80"
     depends_on:
       - backend
 

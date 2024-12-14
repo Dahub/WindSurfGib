@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -45,12 +46,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-app.UseCors();
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+app.UseCors(builder => builder
+    .AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader());
 
 // API Routes
 var api = app.MapGroup("/api");
@@ -74,12 +73,6 @@ agences.MapPost("/{agence}/magasins/{magasin}/articles", async (string agence, s
 });
 
 // Admin routes
-admin.MapDelete("/csv", async (IAdminService adminService) =>
-{
-    await adminService.DeleteCsvFile();
-    return Results.Ok();
-});
-
 admin.MapGet("/csv", async (IAdminService adminService) =>
     Results.File(await adminService.DownloadCsvFile(), "text/csv", "inventory.csv"));
 
@@ -87,6 +80,18 @@ admin.MapPost("/csv", async (IFormFile file, IAdminService adminService) =>
 {
     await adminService.MergeCsvFile(file);
     return Results.Ok();
+})
+.DisableAntiforgery();
+
+admin.MapDelete("/csv", async (IAdminService adminService) =>
+{
+    await adminService.DeleteCsvFile();
+    return Results.Ok();
 });
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.Run();
