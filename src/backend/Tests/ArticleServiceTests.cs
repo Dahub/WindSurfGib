@@ -30,11 +30,11 @@ namespace WindSurfApi.Tests
             // Arrange
             var csvLines = new[]
             {
-                "Agence;Magasin;Code;Designation;Famille;SousFamille;Quantite;QuantiteTerrain;ReferenceFournisseur",
-                "EPS PARIS;205;ART001;Article 1;FAM1;SFAM1;10;0;REF001",
-                "EPS PARIS;205;ART002;Article 2;FAM1;SFAM1;5;0;REF002",
-                "EPS PARIS;205;ART003;Article 3;FAM1;SFAM2;8;0;REF003",
-                "EPS LYON;301;ART001;Article 1;FAM1;SFAM1;8;0;REF001"
+                "Nom Modele Feuille;Code magasin;Nom magasin;Code article;Désignation;Famille;Sous-Famille;Quantite;Reference fournisseur;QuantiteTerrain",
+                "EPS PARIS;205;Paris Centre;ART001;Article 1;FAM1;SFAM1;10;REF001;5",
+                "EPS PARIS;205;Paris Centre;ART002;Article 2;FAM1;SFAM1;5;REF002;3",
+                "EPS PARIS;205;Paris Centre;ART003;Article 3;FAM1;SFAM2;8;REF003;2",
+                "EPS LYON;301;Lyon Centre;ART001;Article 1;FAM1;SFAM1;8;REF001;1"
             };
 
             _csvDataProviderMock.Setup(x => x.ReadAllLinesAsync())
@@ -51,12 +51,17 @@ namespace WindSurfApi.Tests
 
             var sfam1 = famille.SousFamilles.First(sf => sf.SousFamille == "SFAM1");
             Assert.Equal(2, sfam1.Articles.Count);
-            Assert.Contains(sfam1.Articles, a => a.Code == "ART001");
-            Assert.Contains(sfam1.Articles, a => a.Code == "ART002");
+            var art1 = sfam1.Articles.First(a => a.Code == "ART001");
+            Assert.Equal("Article 1", art1.Designation);
+            Assert.Equal(10, art1.Quantite);
+            Assert.Equal(5, art1.QuantiteTerrain);
+            Assert.Equal("REF001", art1.ReferenceFournisseur);
 
             var sfam2 = famille.SousFamilles.First(sf => sf.SousFamille == "SFAM2");
             Assert.Single(sfam2.Articles);
-            Assert.Contains(sfam2.Articles, a => a.Code == "ART003");
+            var art3 = sfam2.Articles.First();
+            Assert.Equal("ART003", art3.Code);
+            Assert.Equal(2, art3.QuantiteTerrain);
         }
 
         [Fact]
@@ -65,9 +70,9 @@ namespace WindSurfApi.Tests
             // Arrange
             var csvLines = new[]
             {
-                "Agence;Magasin;Code;Designation;Famille;SousFamille;Quantite;QuantiteTerrain;ReferenceFournisseur",
-                "EPS PARIS;205;ART001;Article 1;FAM1;SFAM1;10;0;REF001",
-                "EPS PARIS;205;ART002;Article 2;FAM1;SFAM1;5;0;REF002"
+                "Nom Modele Feuille;Code magasin;Nom magasin;Code article;Désignation;Famille;Sous-Famille;Quantite;Reference fournisseur;QuantiteTerrain",
+                "EPS PARIS;205;Paris Centre;ART001;Article 1;FAM1;SFAM1;10;REF001;0",
+                "EPS PARIS;205;Paris Centre;ART002;Article 2;FAM1;SFAM1;5;REF002;0"
             };
 
             var updates = new List<UpdateQuantiteRequest>
@@ -90,8 +95,10 @@ namespace WindSurfApi.Tests
             // Assert
             Assert.NotNull(savedLines);
             Assert.Equal(3, savedLines.Count); // Header + 2 lines
-            Assert.Contains("3", savedLines[1].Split(';')[7]); // Premier article
-            Assert.Contains("2", savedLines[2].Split(';')[7]); // Deuxième article
+            var line1Parts = savedLines[1].Split(';');
+            var line2Parts = savedLines[2].Split(';');
+            Assert.Equal("3", line1Parts[9]); // Premier article
+            Assert.Equal("2", line2Parts[9]); // Deuxième article
         }
 
         [Fact]
@@ -100,8 +107,8 @@ namespace WindSurfApi.Tests
             // Arrange
             var csvLines = new[]
             {
-                "Agence;Magasin;Code;Designation;Famille;SousFamille;Quantite;QuantiteTerrain;ReferenceFournisseur",
-                "EPS PARIS;205;ART001;Article 1;FAM1;SFAM1;10;0;REF001"
+                "Nom Modele Feuille;Code magasin;Nom magasin;Code article;Désignation;Famille;Sous-Famille;Quantite;Reference fournisseur;QuantiteTerrain",
+                "EPS PARIS;205;Paris Centre;ART001;Article 1;FAM1;SFAM1;10;REF001;0"
             };
 
             var updates = new List<UpdateQuantiteRequest>

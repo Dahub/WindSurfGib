@@ -107,6 +107,11 @@ namespace WindSurfApi.Services
             try
             {
                 var lines = await _csvDataProvider.ReadAllLinesAsync();
+                if (lines == null || !lines.Any())
+                {
+                    throw new Exception("Le fichier CSV est vide");
+                }
+
                 var updatedLines = new List<string> { lines[0] }; 
                 var articlesUpdated = new HashSet<string>();
 
