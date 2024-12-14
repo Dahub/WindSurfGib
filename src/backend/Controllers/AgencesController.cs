@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using WindSurfApi.Services.Interfaces;
+using WindSurfApi.Models;
 using System.Collections.Generic;
-using WindSurfApi.Services;
+using System.Threading.Tasks;
 
 namespace WindSurfApi.Controllers
 {
@@ -8,11 +10,21 @@ namespace WindSurfApi.Controllers
     [Route("api/[controller]")]
     public class AgencesController : ControllerBase
     {
-        private readonly CsvService _csvService;
+        private readonly IAgenceService _agenceService;
+        private readonly IMagasinService _magasinService;
+        private readonly IArticleService _articleService;
+        private readonly ILogger<AgencesController> _logger;
 
-        public AgencesController(CsvService csvService)
+        public AgencesController(
+            IAgenceService agenceService,
+            IMagasinService magasinService,
+            IArticleService articleService,
+            ILogger<AgencesController> logger)
         {
-            _csvService = csvService;
+            _agenceService = agenceService;
+            _magasinService = magasinService;
+            _articleService = articleService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -25,12 +37,13 @@ namespace WindSurfApi.Controllers
         {
             try
             {
-                var agences = _csvService.GetAgences();
+                var agences = _agenceService.GetAgences();
                 return Ok(agences);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Une erreur est survenue : {ex.Message}");
+                _logger.LogError(ex, "Erreur lors de la récupération des agences");
+                return StatusCode(500, new { message = "Une erreur est survenue lors de la récupération des agences" });
             }
         }
 
@@ -39,7 +52,7 @@ namespace WindSurfApi.Controllers
         {
             try
             {
-                var magasins = _csvService.GetMagasins(agence);
+                var magasins = _magasinService.GetMagasins(agence);
                 if (!magasins.Any())
                 {
                     return NotFound($"Aucun magasin trouvé pour l'agence : {agence}");
@@ -48,32 +61,57 @@ namespace WindSurfApi.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Une erreur est survenue : {ex.Message}");
+                _logger.LogError(ex, $"Erreur lors de la récupération des magasins pour l'agence {agence}");
+                return StatusCode(500, new { message = "Une erreur est survenue lors de la récupération des magasins" });
             }
         }
 
-        [HttpGet("{agence}/magasins/{codeMagasin}/articles")]
-        public ActionResult<IEnumerable<ArticleParFamille>> GetArticles(string agence, string codeMagasin)
+        [HttpGet("{agence}/magasins/{magasin}/articles")]
+        public IActionResult GetArticles(string agence, string magasin)
         {
             try
             {
-                // Vérifier d'abord si le magasin existe pour cette agence
-                var magasins = _csvService.GetMagasins(agence);
-                if (!magasins.Any(m => m.Code.Equals(codeMagasin, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return NotFound($"Le magasin avec le code {codeMagasin} n'existe pas pour l'agence {agence}");
-                }
-
-                var articles = _csvService.GetArticles(codeMagasin);
+                var articles = _articleService.GetArticles(agence, magasin);
                 return Ok(articles);
-            }
-            catch (FileNotFoundException ex)
-            {
-                return NotFound(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Une erreur est survenue lors de la récupération des articles : {ex.Message}");
+                _logger.LogError(ex, $"Erreur lors de la récupération des articles pour l'agence {agence}, magasin {magasin}");
+                return StatusCode(500, new { message = "Une erreur est survenue lors de la récupération des articles" });
+            }
+        }
+
+        [HttpPost("{agence}/magasins/{magasin}/articles")]
+        public async Task<IActionResult> UpdateQuantites(string agence, string magasin, [FromBody] List<UpdateQuantiteRequest> articles)
+        {
+            try
+            {
+                _logger.LogInformation($"Réception d'une demande de mise à jour pour l'agence '{agence}', magasin '{magasin}'");
+                _logger.LogInformation($"Nombre d'articles à mettre à jour : {articles?.Count ?? 0}");
+                if (articles != null)
+                {
+                    foreach (var article in articles)
+                    {
+                        _logger.LogInformation($"Article à mettre à jour : Code='{article.CodeArticle}', Quantité={article.QuantiteTerrain}");
+                    }
+                }
+
+                // Vérifier d'abord si le magasin existe
+                var magasins = _magasinService.GetMagasins(agence);
+                if (!magasins.Any(m => m.Code.Equals(magasin, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _logger.LogWarning($"Magasin non trouvé. Agence='{agence}', Magasin='{magasin}'");
+                    return NotFound($"Le magasin avec le code {magasin} n'existe pas pour l'agence {agence}");
+                }
+
+                await _articleService.UpdateQuantites(agence, magasin, articles);
+                _logger.LogInformation("Mise à jour des quantités réussie");
+                return Ok(new { message = "Quantités mises à jour avec succès" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Erreur lors de la mise à jour des quantités. Agence='{agence}', Magasin='{magasin}'");
+                return StatusCode(500, new { message = "Une erreur est survenue lors de la mise à jour des quantités" });
             }
         }
     }

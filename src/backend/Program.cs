@@ -1,3 +1,9 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using WindSurfApi.Services;
+using WindSurfApi.Services.Interfaces;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -15,17 +21,21 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Enregistrement du service CSV
-builder.Services.AddScoped<WindSurfApi.Services.CsvService>();
+// Register services
+builder.Services.AddSingleton<ICsvDataProvider, CsvDataProvider>();
+builder.Services.AddScoped<IAgenceService, AgenceService>();
+builder.Services.AddScoped<IMagasinService, MagasinService>();
+builder.Services.AddScoped<IArticleService, ArticleService>();
 
 // Configuration CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowVueApp",
-        builder => builder
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
 });
 
 var app = builder.Build();
@@ -41,8 +51,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseCors("AllowVueApp");
-
+app.UseCors();
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();

@@ -10,71 +10,88 @@
     </div>
 
     <div v-if="loading" class="loading">
-      Chargement des articles...
+      Chargement...
     </div>
     <div v-else-if="error" class="error">
       {{ error }}
     </div>
-    <div v-else class="familles-list">
-      <div v-for="famille in famillesGroupees" 
-           :key="famille.famille" 
-           class="famille">
-        <div class="famille-header" @click="toggleFamille(famille)">
-          <span class="toggle-icon">{{ famille.expanded ? '▼' : '▶' }}</span>
-          {{ famille.famille }}
-        </div>
-        <div v-if="famille.expanded" class="sous-familles">
-          <div v-for="sousFamille in famille.sousFamilles" 
-               :key="sousFamille.sousFamille"
-               class="sous-famille">
-            <div class="sous-famille-header" @click="toggleSousFamille(sousFamille)">
-              <span class="toggle-icon">{{ sousFamille.expanded ? '▼' : '▶' }}</span>
-              <div class="sous-famille-content">
-                <span>{{ sousFamille.sousFamille }}</span>
-                <span class="articles-count">({{ sousFamille.articles.length }} articles)</span>
+    <div v-else>
+      <div class="familles-list">
+        <div v-for="famille in famillesGroupees" 
+             :key="famille.famille" 
+             class="famille">
+          <div class="famille-header" @click="toggleFamille(famille)">
+            <span class="toggle-icon">{{ famille.expanded ? '▼' : '▶' }}</span>
+            {{ famille.famille }}
+          </div>
+          <div v-if="famille.expanded" class="sous-familles">
+            <div v-for="sousFamille in famille.sousFamilles" 
+                 :key="sousFamille.sousFamille"
+                 class="sous-famille">
+              <div class="sous-famille-header" @click="toggleSousFamille(sousFamille)">
+                <span class="toggle-icon">{{ sousFamille.expanded ? '▼' : '▶' }}</span>
+                <div class="sous-famille-content">
+                  <span>{{ sousFamille.sousFamille }}</span>
+                  <span class="articles-count">({{ sousFamille.articles.length }} articles)</span>
+                </div>
               </div>
-            </div>
-            <div v-if="sousFamille.expanded" class="articles-list">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Désignation</th>
-                    <th>Quantité Terrain</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="article in sousFamille.articles" :key="article.code">
-                    <td>{{ article.code }}</td>
-                    <td>{{ article.designation }}</td>
-                    <td>
-                      <div class="quantity-controls">
-                        <input 
-                          type="number" 
-                          v-model.number="article.quantiteTerrain"
-                          min="0"
-                          @change="handleQuantityChange(article)"
-                        >
-                        <div class="quantity-shortcuts">
-                          <button class="shortcut-btn" @click="incrementQuantity(article, 1)">+1</button>
-                          <button class="shortcut-btn" @click="incrementQuantity(article, 5)">+5</button>
-                          <button class="shortcut-btn" @click="incrementQuantity(article, 10)">+10</button>
+              <div v-if="sousFamille.expanded" class="articles-list">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Désignation</th>
+                      <th>Quantité Terrain</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="article in sousFamille.articles" :key="article.code">
+                      <td>{{ article.code }}</td>
+                      <td>{{ article.designation }}</td>
+                      <td>
+                        <div class="quantity-controls">
+                          <input 
+                            type="number" 
+                            v-model.number="article.quantiteTerrain"
+                            min="0"
+                            @change="handleQuantityChange(article)"
+                          >
+                          <div class="quantity-shortcuts">
+                            <button class="shortcut-btn" @click="incrementQuantity(article, 1)">+1</button>
+                            <button class="shortcut-btn" @click="incrementQuantity(article, 5)">+5</button>
+                            <button class="shortcut-btn" @click="incrementQuantity(article, 10)">+10</button>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+      <div class="validation-section">
+        <div class="connection-status" :class="{ 'offline': !isOnline }">
+          {{ isOnline ? 'Connecté' : 'Mode hors-ligne' }}
+        </div>
+        <div class="pending-changes" v-if="hasPendingChanges">
+          {{ pendingChangesCount }} modifications en attente
+        </div>
+        <button 
+          class="validate-button" 
+          :disabled="!isOnline || !hasPendingChanges"
+          @click="validateChanges"
+        >
+          Valider la feuille
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { API_URL } from '../config'
 
@@ -88,6 +105,43 @@ export default {
     const error = ref(null)
     const articles = ref([])
     const famillesGroupees = ref([])
+    const isOnline = ref(navigator.onLine)
+    
+    // Clé unique pour le localStorage basée sur l'agence et le magasin
+    const storageKey = computed(() => 
+      `inventory_changes_${route.params.agence}_${route.params.magasin}`
+    )
+
+    // Charger les modifications en attente du localStorage
+    const loadPendingChanges = () => {
+      const stored = localStorage.getItem(storageKey.value)
+      return stored ? JSON.parse(stored) : {}
+    }
+
+    const pendingChanges = ref(loadPendingChanges())
+
+    const hasPendingChanges = computed(() => Object.keys(pendingChanges.value).length > 0)
+    const pendingChangesCount = computed(() => Object.keys(pendingChanges.value).length)
+
+    // Gestionnaires de la connectivité
+    const handleOnline = () => {
+      isOnline.value = true
+    }
+
+    const handleOffline = () => {
+      isOnline.value = false
+    }
+
+    onMounted(() => {
+      window.addEventListener('online', handleOnline)
+      window.addEventListener('offline', handleOffline)
+      loadArticles()
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    })
 
     const agenceName = computed(() => route.params.agenceName || route.params.agence)
     const magasinName = computed(() => route.params.magasinName || route.params.magasin)
@@ -103,6 +157,18 @@ export default {
         articles.value = await response.json()
 
         console.log('Articles chargés:', articles.value);
+
+        // Appliquer les modifications en attente aux articles chargés
+        const stored = loadPendingChanges()
+        articles.value.forEach(famille => {
+          famille.sousFamilles.forEach(sf => {
+            sf.articles.forEach(article => {
+              if (stored[article.code]) {
+                article.quantiteTerrain = stored[article.code].quantiteTerrain
+              }
+            })
+          })
+        })
 
         groupArticles()
       } catch (e) {
@@ -157,15 +223,43 @@ export default {
     }
 
     const handleQuantityChange = (article) => {
-      console.log('Quantité modifiée pour article:', article.code, 'Nouvelle valeur:', article.quantiteTerrain)
-      // TODO: Appeler l'API pour sauvegarder la nouvelle quantité
+      // Stocker la modification dans le localStorage
+      pendingChanges.value[article.code] = {
+        codeArticle: article.code,
+        quantiteTerrain: article.quantiteTerrain
+      }
+      localStorage.setItem(storageKey.value, JSON.stringify(pendingChanges.value))
+    }
+
+    const validateChanges = async () => {
+      if (!isOnline.value || !hasPendingChanges.value) return
+
+      try {
+        const changes = Object.values(pendingChanges.value)
+        const response = await fetch(`${API_URL}/api/Agences/${encodeURIComponent(route.params.agence)}/magasins/${encodeURIComponent(route.params.magasin)}/articles`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(changes)
+        })
+
+        if (!response.ok) throw new Error('Erreur lors de la validation des modifications')
+
+        // Vider le localStorage après une validation réussie
+        localStorage.removeItem(storageKey.value)
+        pendingChanges.value = {}
+
+        // Recharger les articles pour avoir les dernières valeurs
+        await loadArticles()
+      } catch (e) {
+        error.value = e.message
+      }
     }
 
     const goBack = () => {
       router.back()
     }
-
-    onMounted(loadArticles)
 
     return {
       agenceName,
@@ -179,7 +273,11 @@ export default {
       incrementQuantity,
       expandAll,
       collapseAll,
-      goBack
+      goBack,
+      isOnline,
+      hasPendingChanges,
+      pendingChangesCount,
+      validateChanges
     }
   }
 }
@@ -371,6 +469,54 @@ input[type="number"]:focus {
   color: #d32f2f;
   background-color: #ffebee;
   border-radius: 4px;
+}
+
+.validation-section {
+  position: sticky;
+  bottom: 0;
+  background-color: white;
+  padding: 0.5rem;
+  border-top: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+}
+
+.connection-status {
+  font-size: 0.85em;
+  color: #4CAF50;
+  display: flex;
+  align-items: center;
+}
+
+.connection-status.offline {
+  color: #f44336;
+}
+
+.pending-changes {
+  font-size: 0.85em;
+  color: #666;
+}
+
+.validate-button {
+  padding: 0.5rem 1rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.validate-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.validate-button:not(:disabled):hover {
+  background-color: #45a049;
 }
 
 h1 {
