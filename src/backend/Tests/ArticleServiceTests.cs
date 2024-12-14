@@ -7,6 +7,7 @@ using Moq;
 using WindSurfApi.Models;
 using WindSurfApi.Services;
 using WindSurfApi.Services.Interfaces;
+using WindSurfApi.Exceptions;
 using Xunit;
 
 namespace WindSurfApi.Tests
@@ -120,7 +121,7 @@ namespace WindSurfApi.Tests
                                .ReturnsAsync(csvLines);
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() => 
+            await Assert.ThrowsAsync<ResourceNotFoundException>(() => 
                 _articleService.UpdateQuantites("EPS PARIS", "205", updates));
         }
 
@@ -139,7 +140,7 @@ namespace WindSurfApi.Tests
                                .ReturnsAsync(csvLines);
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() => 
+            await Assert.ThrowsAsync<InvalidBusinessDataException>(() => 
                 _articleService.UpdateQuantites("EPS PARIS", "205", updates));
         }
     }

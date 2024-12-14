@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using WindSurfApi.Models;
 using WindSurfApi.Services.Interfaces;
+using WindSurfApi.Exceptions;
 
 namespace WindSurfApi.Services
 {
@@ -109,7 +110,7 @@ namespace WindSurfApi.Services
                 var lines = await _csvDataProvider.ReadAllLinesAsync();
                 if (lines == null || !lines.Any())
                 {
-                    throw new Exception("Le fichier CSV est vide");
+                    throw new InvalidBusinessDataException("Le fichier CSV est vide");
                 }
 
                 var updatedLines = new List<string> { lines[0] }; 
@@ -150,7 +151,7 @@ namespace WindSurfApi.Services
                 {
                     var message = $"Les articles suivants n'ont pas été trouvés : {string.Join(", ", nonUpdatedArticles)}";
                     _logger.LogError(message);
-                    throw new Exception(message);
+                    throw new ResourceNotFoundException(message);
                 }
 
                 await _csvDataProvider.WriteAllLinesAsync(updatedLines);

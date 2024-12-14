@@ -1,9 +1,12 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using WindSurfApi.Models;
 using WindSurfApi.Services;
 using WindSurfApi.Services.Interfaces;
+using WindSurfApi.Exceptions;
 using Xunit;
 
 namespace WindSurfApi.Tests
@@ -22,16 +25,14 @@ namespace WindSurfApi.Tests
         }
 
         [Fact]
-        public void GetMagasins_ShouldReturnDistinctMagasins()
+        public void GetMagasins_ShouldReturnMagasins()
         {
             // Arrange
             var csvLines = new[]
             {
-                "Agence;Magasin;NomMagasin;Code;Designation;Famille;SousFamille;Quantite;QuantiteTerrain;ReferenceFournisseur",
-                "EPS PARIS;205;Paris Centre;ART001;Article 1;FAM1;SFAM1;10;0;REF001",
-                "EPS PARIS;205;Paris Centre;ART002;Article 2;FAM1;SFAM1;5;0;REF002",
-                "EPS PARIS;206;Paris Sud;ART003;Article 3;FAM1;SFAM2;8;0;REF003",
-                "EPS LYON;301;Lyon Centre;ART001;Article 1;FAM1;SFAM1;8;0;REF001"
+                "Nom Modele Feuille;Code magasin;Nom magasin;Code article;Désignation;Famille;Sous-Famille;Quantite;Reference fournisseur;QuantiteTerrain",
+                "EPS PARIS;205;Paris Centre;ART001;Article 1;FAM1;SFAM1;10;REF001;5",
+                "EPS PARIS;206;Paris Sud;ART001;Article 1;FAM1;SFAM1;8;REF001;3"
             };
 
             _csvDataProviderMock.Setup(x => x.ReadAllLinesAsync())
@@ -47,41 +48,39 @@ namespace WindSurfApi.Tests
         }
 
         [Fact]
-        public void GetMagasins_WithNonExistentAgence_ShouldReturnEmptyList()
+        public void GetMagasins_WithNonExistentAgence_ShouldThrowResourceNotFoundException()
         {
             // Arrange
             var csvLines = new[]
             {
-                "Agence;Magasin;NomMagasin;Code;Designation;Famille;SousFamille;Quantite;QuantiteTerrain;ReferenceFournisseur",
-                "EPS PARIS;205;Paris Centre;ART001;Article 1;FAM1;SFAM1;10;0;REF001"
+                "Nom Modele Feuille;Code magasin;Nom magasin;Code article;Désignation;Famille;Sous-Famille;Quantite;Reference fournisseur;QuantiteTerrain",
+                "EPS PARIS;205;Paris Centre;ART001;Article 1;FAM1;SFAM1;10;REF001;5"
             };
 
             _csvDataProviderMock.Setup(x => x.ReadAllLinesAsync())
                                .ReturnsAsync(csvLines);
 
-            // Act
-            var result = _magasinService.GetMagasins("AGENCE INCONNUE").ToList();
-
-            // Assert
-            Assert.Empty(result);
+            // Act & Assert
+            var exception = Assert.Throws<ResourceNotFoundException>(() => 
+                _magasinService.GetMagasins("AGENCE INCONNUE"));
+            Assert.Equal("Aucun magasin trouvé pour l'agence : AGENCE INCONNUE", exception.Message);
         }
 
         [Fact]
-        public void GetMagasins_WithEmptyFile_ShouldReturnEmptyList()
+        public void GetMagasins_WithEmptyFile_ShouldThrowInvalidBusinessDataException()
         {
             // Arrange
-            var csvLines = new[] { "Agence;Magasin;NomMagasin;Code;Designation;Famille;SousFamille;Quantite;QuantiteTerrain;ReferenceFournisseur" };
+            var csvLines = Array.Empty<string>();
 
             _csvDataProviderMock.Setup(x => x.ReadAllLinesAsync())
                                .ReturnsAsync(csvLines);
 
-            // Act
-            var result = _magasinService.GetMagasins("EPS PARIS").ToList();
-
-            // Assert
-            Assert.Empty(result);
+            // Act & Assert
+            var exception = Assert.Throws<InvalidBusinessDataException>(() => 
+                _magasinService.GetMagasins("EPS PARIS"));
+            Assert.Equal("Le fichier CSV est vide", exception.Message);
         }
-
+        
         [Fact]
         public void GetMagasins_ShouldBeCaseInsensitive()
         {

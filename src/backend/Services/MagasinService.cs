@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using WindSurfApi.Models;
 using WindSurfApi.Services.Interfaces;
+using WindSurfApi.Exceptions;
 
 namespace WindSurfApi.Services
 {
@@ -20,27 +21,35 @@ namespace WindSurfApi.Services
 
         public IEnumerable<Magasin> GetMagasins(string agence)
         {
-            try
+            var lines = _csvDataProvider.ReadAllLinesAsync().Result;
+            
+            if (lines == null || !lines.Any())
             {
-                var lines = _csvDataProvider.ReadAllLinesAsync().Result;
-                return lines.Skip(1) // Skip header
-                          .Where(line => !string.IsNullOrWhiteSpace(line))
-                          .Select(line => line.Split(';'))
-                          .Where(values => values.Length >= 3 && 
-                                 string.Equals(values[0].Trim(), agence.Trim(), StringComparison.OrdinalIgnoreCase))
-                          .Select(values => new Magasin 
-                          { 
-                              Code = values[1], 
-                              Nom = values[2] 
-                          })
-                          .Distinct(new MagasinComparer())
-                          .OrderBy(m => m.Code);
+                _logger.LogWarning("Le fichier CSV est vide");
+                throw new InvalidBusinessDataException("Le fichier CSV est vide");
             }
-            catch (Exception ex)
+
+            var magasins = lines.Skip(1)
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => line.Split(';'))
+                .Where(values => values.Length >= 3 && 
+                    string.Equals(values[0].Trim(), agence.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Select(values => new Magasin
+                {
+                    Code = values[1].Trim(),
+                    Nom = values[2].Trim()
+                })
+                .DistinctBy(m => m.Code)
+                .OrderBy(m => m.Code)
+                .ToList();
+
+            if (!magasins.Any())
             {
-                _logger.LogError(ex, $"Erreur lors de la récupération des magasins pour l'agence {agence}");
-                throw;
+                _logger.LogWarning($"Aucun magasin trouvé pour l'agence : {agence}");
+                throw new ResourceNotFoundException($"Aucun magasin trouvé pour l'agence : {agence}");
             }
+
+            return magasins;
         }
     }
 }
